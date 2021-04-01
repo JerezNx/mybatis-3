@@ -58,10 +58,10 @@ public class SimpleExecutor extends BaseExecutor {
     Statement stmt = null;
     try {
       Configuration configuration = ms.getConfiguration();
-//      创建 StatementHandler，核心对象之一
+//      创建 StatementHandler，核心对象之一 ，其中同时创建了 ParameterHandler 和 ResultSetHandler
 //      每次都重新创建
       StatementHandler handler = configuration.newStatementHandler(wrapper, ms, parameter, rowBounds, resultHandler, boundSql);
-//      创建statement，设置参数.这里的statement是jdbc的，区分于之前的 MappedStatement
+//      创建statement，设置参数.这里的statement是jdbc的，区分于之前的 唯一标识 以及 MappedStatement
       stmt = prepareStatement(handler, ms.getStatementLog());
       return handler.query(stmt, resultHandler);
     } finally {
@@ -88,7 +88,7 @@ public class SimpleExecutor extends BaseExecutor {
     Statement stmt;
 //    获取db连接
     Connection connection = getConnection(statementLog);
-//    创建statement,设置一些配置参数
+//    创建statement,设置一些通用配置参数
     stmt = handler.prepare(connection, transaction.getTimeout());
 //    如果是 prepare/callable，就由 parameterHandler, 设置参数 （?占位符）
 //    主要看 PreparedStatementHandler 的实现

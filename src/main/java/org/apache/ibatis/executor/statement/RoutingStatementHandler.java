@@ -40,13 +40,15 @@ public class RoutingStatementHandler implements StatementHandler {
     // 路由handler，策略模式?，根据statement类型 指定给具体实现
     switch (ms.getStatementType()) {
       case STATEMENT:
+//        对应 jdbc 的普通 Statement
         delegate = new SimpleStatementHandler(executor, ms, parameter, rowBounds, resultHandler, boundSql);
         break;
       case PREPARED:
+//        对应 jdbc 的普通 PreparedStatement
         delegate = new PreparedStatementHandler(executor, ms, parameter, rowBounds, resultHandler, boundSql);
         break;
       case CALLABLE:
-//        用于调用存储过程，一般不用
+//        对应 jdbc 的普通 CallableStatement (用于调用存储过程，一般不用)
         delegate = new CallableStatementHandler(executor, ms, parameter, rowBounds, resultHandler, boundSql);
         break;
       default:

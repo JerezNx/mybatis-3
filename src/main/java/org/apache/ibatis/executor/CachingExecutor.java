@@ -87,9 +87,9 @@ public class CachingExecutor implements Executor {
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
-//    查询sql相关
+//    解析动态sql相关
     BoundSql boundSql = ms.getBoundSql(parameterObject);
-//    根据配置、参数、sql等因素，生成缓存的key
+//    根据配置（其实是其id,即外面传的statement唯一标识）、参数、响应逻辑分页、sql等因素，生成缓存的key
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
@@ -98,14 +98,20 @@ public class CachingExecutor implements Executor {
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
       throws SQLException {
     Cache cache = ms.getCache();
+//    尝试获取缓存
     if (cache != null) {
+//      如果缓存中有值，判断是否需要刷新缓存（如果之前有 增删改 操作，就需要）
       flushCacheIfRequired(ms);
+//      可见，mapper中还能配置是否使用缓存
       if (ms.isUseCache() && resultHandler == null) {
         ensureNoOutParams(ms, boundSql);
         @SuppressWarnings("unchecked")
+//          尝试从缓存中获取值（之前的可以被flush掉了）
         List<E> list = (List<E>) tcm.getObject(cache, key);
         if (list == null) {
+//          如果没有了，就重新query
           list = delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+//          将结果放进缓存
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
         return list;
