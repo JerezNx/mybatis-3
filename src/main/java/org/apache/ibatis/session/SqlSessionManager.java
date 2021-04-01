@@ -1,19 +1,23 @@
 /**
- *    Copyright 2009-2019 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2019 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.session;
+
+import org.apache.ibatis.cursor.Cursor;
+import org.apache.ibatis.executor.BatchResult;
+import org.apache.ibatis.reflection.ExceptionUtil;
 
 import java.io.InputStream;
 import java.io.Reader;
@@ -25,11 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.ibatis.cursor.Cursor;
-import org.apache.ibatis.executor.BatchResult;
-import org.apache.ibatis.reflection.ExceptionUtil;
-
 /**
+ * 同时实现了 SqlSessionFactory 和 SqlSession
+ * <p>
+ * 主要由 {@link SqlSessionInterceptor} 对 SqlSession 进行代理，处理事务
+ *
  * @author Larry Meadors
  */
 public class SqlSessionManager implements SqlSessionFactory, SqlSession {
@@ -37,14 +41,19 @@ public class SqlSessionManager implements SqlSessionFactory, SqlSession {
   private final SqlSessionFactory sqlSessionFactory;
   private final SqlSession sqlSessionProxy;
 
+  /**
+   * 本地session，如果使用这个，就由自己来管理事务
+   *
+   * @see SqlSessionInterceptor#invoke(java.lang.Object, java.lang.reflect.Method, java.lang.Object[])
+   */
   private final ThreadLocal<SqlSession> localSqlSession = new ThreadLocal<>();
 
   private SqlSessionManager(SqlSessionFactory sqlSessionFactory) {
     this.sqlSessionFactory = sqlSessionFactory;
     this.sqlSessionProxy = (SqlSession) Proxy.newProxyInstance(
-        SqlSessionFactory.class.getClassLoader(),
-        new Class[]{SqlSession.class},
-        new SqlSessionInterceptor());
+      SqlSessionFactory.class.getClassLoader(),
+      new Class[]{SqlSession.class},
+      new SqlSessionInterceptor());
   }
 
   public static SqlSessionManager newInstance(Reader reader) {
@@ -75,6 +84,9 @@ public class SqlSessionManager implements SqlSessionFactory, SqlSession {
     return new SqlSessionManager(sqlSessionFactory);
   }
 
+  /**
+   * 自己手动管理事务
+   */
   public void startManagedSession() {
     this.localSqlSession.set(openSession());
   }
@@ -339,11 +351,12 @@ public class SqlSessionManager implements SqlSessionFactory, SqlSession {
 
   private class SqlSessionInterceptor implements InvocationHandler {
     public SqlSessionInterceptor() {
-        // Prevent Synthetic Access
+      // Prevent Synthetic Access
     }
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+//      如果 SqlSessionManager 中 设置了 sqlSession，就由其处理，调用者自己管理事务
       final SqlSession sqlSession = SqlSessionManager.this.localSqlSession.get();
       if (sqlSession != null) {
         try {
@@ -352,6 +365,9 @@ public class SqlSessionManager implements SqlSessionFactory, SqlSession {
           throw ExceptionUtil.unwrapThrowable(t);
         }
       } else {
+//        否则，就帮其处理事务
+//        其实和spring集成后，这些都没啥卵用...
+//        spring中使用的是 SqlSessionTemplate，但思路和这个是一样的，不过其事务处理比较复杂
         try (SqlSession autoSqlSession = openSession()) {
           try {
             final Object result = method.invoke(autoSqlSession, args);

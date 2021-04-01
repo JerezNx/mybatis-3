@@ -143,6 +143,9 @@ public class DefaultSqlSession implements SqlSession {
   @Override
   public <E> List<E> selectList(String statement, Object parameter, RowBounds rowBounds) {
     try {
+//      这里的 statement 是指的 指定mapper方法全路径的 字符串，
+//      ms 是 根据 全路径，找到对应xml片段， 解析后的 xml片段配置
+//      所以要求 方法名和 xml 中的 id 相同
       MappedStatement ms = configuration.getMappedStatement(statement);
       return executor.query(ms, wrapCollection(parameter), rowBounds, Executor.NO_RESULT_HANDLER);
     } catch (Exception e) {

@@ -65,7 +65,8 @@ public abstract class BaseStatementHandler implements StatementHandler {
     }
 
     this.boundSql = boundSql;
-
+//    创建两个核心对象，应用插件代理
+//    这两个handler的生命周期和 statementHandler  是一样的，一次db操作创建一个
     this.parameterHandler = configuration.newParameterHandler(mappedStatement, parameterObject, boundSql);
     this.resultSetHandler = configuration.newResultSetHandler(executor, mappedStatement, rowBounds, parameterHandler, resultHandler, boundSql);
   }
@@ -85,7 +86,9 @@ public abstract class BaseStatementHandler implements StatementHandler {
     ErrorContext.instance().sql(boundSql.getSql());
     Statement statement = null;
     try {
+//      根据不同类型，实例化不同的statement
       statement = instantiateStatement(connection);
+//      设置参数
       setStatementTimeout(statement, transactionTimeout);
       setFetchSize(statement);
       return statement;

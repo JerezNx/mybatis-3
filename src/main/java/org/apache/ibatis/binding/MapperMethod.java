@@ -56,6 +56,7 @@ public class MapperMethod {
 
   public Object execute(SqlSession sqlSession, Object[] args) {
     Object result;
+//    根据mapper xml中的标签，区分操作类型
     switch (command.getType()) {
       case INSERT: {
         Object param = method.convertArgsToSqlCommandParam(args);
@@ -104,6 +105,12 @@ public class MapperMethod {
     return result;
   }
 
+  /**
+   * 对返回的count进行映射处理
+   *
+   * @param rowCount count
+   * @return res
+   */
   private Object rowCountResult(int rowCount) {
     final Object result;
     if (method.returnsVoid()) {
@@ -221,9 +228,13 @@ public class MapperMethod {
     private final String name;
     private final SqlCommandType type;
 
+    /**
+     * 解析方法对应xml片段
+     */
     public SqlCommand(Configuration configuration, Class<?> mapperInterface, Method method) {
       final String methodName = method.getName();
       final Class<?> declaringClass = method.getDeclaringClass();
+//      解析xml片段
       MappedStatement ms = resolveMappedStatement(mapperInterface, methodName, declaringClass,
           configuration);
       if (ms == null) {

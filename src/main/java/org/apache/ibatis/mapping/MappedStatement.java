@@ -29,6 +29,7 @@ import org.apache.ibatis.scripting.LanguageDriver;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 对应到xml中的一个方法片段，比如 <select></>
  * @author Clinton Begin
  */
 public final class MappedStatement {

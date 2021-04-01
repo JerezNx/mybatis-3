@@ -26,7 +26,13 @@ public class InterceptorChain {
 
   private final List<Interceptor> interceptors = new ArrayList<>();
 
+  /**
+   * 由插件一层层代理
+   * @param target 原对象：Executor、StatementHandler、ParameterHandler、ResultSetHandler
+   * @return 代理后的对象
+   */
   public Object pluginAll(Object target) {
+//    Interceptor 就是我们自己开发插件时，实现的接口
     for (Interceptor interceptor : interceptors) {
       target = interceptor.plugin(target);
     }

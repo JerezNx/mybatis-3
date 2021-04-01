@@ -33,6 +33,9 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
 /**
+ * 装饰器模式，在普通的 Executor 上 ，增加了缓存功能
+ * mybatis 二级缓存
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
@@ -84,7 +87,9 @@ public class CachingExecutor implements Executor {
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
+//    查询sql相关
     BoundSql boundSql = ms.getBoundSql(parameterObject);
+//    根据配置、参数、sql等因素，生成缓存的key
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
@@ -106,6 +111,7 @@ public class CachingExecutor implements Executor {
         return list;
       }
     }
+//    如果没有缓存，即第一次查询
     return delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 

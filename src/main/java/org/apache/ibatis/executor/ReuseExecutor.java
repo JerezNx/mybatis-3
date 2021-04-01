@@ -34,6 +34,8 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
 /**
+ * 会将 statement 缓存，以sql 为key，生命周期是 sqlSession 内
+ *
  * @author Clinton Begin
  */
 public class ReuseExecutor extends BaseExecutor {
@@ -81,14 +83,17 @@ public class ReuseExecutor extends BaseExecutor {
     Statement stmt;
     BoundSql boundSql = handler.getBoundSql();
     String sql = boundSql.getSql();
+//    会将 statement 缓存，以 sql 为 key
     if (hasStatementFor(sql)) {
       stmt = getStatement(sql);
       applyTransactionTimeout(stmt);
     } else {
+//      第1次还没有缓存的话，则还是和 simple 一样，创建statement，配置通用参数
       Connection connection = getConnection(statementLog);
       stmt = handler.prepare(connection, transaction.getTimeout());
       putStatement(sql, stmt);
     }
+//    但占位符参数肯定是重新设置
     handler.parameterize(stmt);
     return stmt;
   }

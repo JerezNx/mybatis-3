@@ -31,6 +31,8 @@ import org.apache.ibatis.transaction.Transaction;
  * Ignores all commit or rollback requests.
  * By default, it closes the connection but can be configured not to do it.
  *
+ * 该实现不会对事务进行管理，而是依托程序的容器来实现，这里没有任何作用
+ *
  * @author Clinton Begin
  *
  * @see ManagedTransactionFactory

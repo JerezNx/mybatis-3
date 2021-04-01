@@ -84,6 +84,8 @@ public class DefaultParameterHandler implements ParameterHandler {
             jdbcType = configuration.getJdbcTypeForNull();
           }
           try {
+//            最终根据参数类型，调用对应的 TypeHandler，设置参数
+//            比如枚举类型，可以自己实现对应 TypeHandler
             typeHandler.setParameter(ps, i + 1, value, jdbcType);
           } catch (TypeException | SQLException e) {
             throw new TypeException("Could not set parameters for mapping: " + parameterMapping + ". Cause: " + e, e);

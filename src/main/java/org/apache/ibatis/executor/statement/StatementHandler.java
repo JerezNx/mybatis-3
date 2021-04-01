@@ -30,6 +30,9 @@ import org.apache.ibatis.session.ResultHandler;
  */
 public interface StatementHandler {
 
+  /**
+   * 创建statement,设置一些配置参数
+   */
   Statement prepare(Connection connection, Integer transactionTimeout)
       throws SQLException;
 

@@ -61,7 +61,10 @@ public class PreparedStatementHandler extends BaseStatementHandler {
   @Override
   public <E> List<E> query(Statement statement, ResultHandler resultHandler) throws SQLException {
     PreparedStatement ps = (PreparedStatement) statement;
+//    jdbc查询数据库
     ps.execute();
+//    将结果集交由 resultSetHandler 进行处理。
+//    核心对象之一，这里也是已经被插件层层代理后的对象了
     return resultSetHandler.handleResultSets(ps);
   }
 
@@ -91,6 +94,7 @@ public class PreparedStatementHandler extends BaseStatementHandler {
 
   @Override
   public void parameterize(Statement statement) throws SQLException {
+//    调用 parameterHandler，核心对象之一，这里的是已经被各插件拦截器层层代理后的了
     parameterHandler.setParameters((PreparedStatement) statement);
   }
 

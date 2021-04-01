@@ -30,6 +30,8 @@ import org.apache.ibatis.reflection.ExceptionUtil;
 import org.apache.ibatis.session.SqlSession;
 
 /**
+ * mapper代理，基于jdk动态代理
+ *
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
@@ -79,9 +81,11 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
     try {
+//      判断，如果调用的是Object的方法，就正常执行
       if (Object.class.equals(method.getDeclaringClass())) {
         return method.invoke(this, args);
       } else {
+//        否则就是mapper的方法，进行拦截处理
         return cachedInvoker(method).invoke(proxy, method, args, sqlSession);
       }
     } catch (Throwable t) {
@@ -89,6 +93,9 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
     }
   }
 
+  /**
+   * 生成方法的拦截器，并进行缓存
+   */
   private MapperMethodInvoker cachedInvoker(Method method) throws Throwable {
     try {
       // A workaround for https://bugs.openjdk.java.net/browse/JDK-8161372
@@ -100,6 +107,7 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
       }
 
       return methodCache.computeIfAbsent(method, m -> {
+//        如果是default方法
         if (m.isDefault()) {
           try {
             if (privateLookupInMethod == null) {
@@ -112,6 +120,7 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
             throw new RuntimeException(e);
           }
         } else {
+//          普通的mapper接口的方法，正常都是这
           return new PlainMethodInvoker(new MapperMethod(mapperInterface, method, sqlSession.getConfiguration()));
         }
       });
@@ -149,6 +158,7 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args, SqlSession sqlSession) throws Throwable {
+//      调用mapper的方法，其实都是走的这
       return mapperMethod.execute(sqlSession, args);
     }
   }
