@@ -58,6 +58,7 @@ public class MapperRegistry {
   }
 
   public <T> void addMapper(Class<T> type) {
+//    mapper必须为接口
     if (type.isInterface()) {
       if (hasMapper(type)) {
         throw new BindingException("Type " + type + " is already known to the MapperRegistry.");
@@ -68,11 +69,20 @@ public class MapperRegistry {
         // It's important that the type is added before the parser is run
         // otherwise the binding may automatically be attempted by the
         // mapper parser. If the type is already known, it won't try.
+//        上面作者原本的注释描述了为什么先put，然后如果解析了再remove的原因，但没说其根本原因。
+//        这里详细补充描述一下：
+//        首先要理解，就是 这里是解析注册mapper，而Mybatis Mapper 支持 注解式和 xml式结合使用。
+//        因为要mapper接口类是必定要解析的，所以先用 MapperAnnotationBuilder 解析。
+//        而其解析过程中会尝试 调用 XMLMapperBuilder 进行对应的xml解析。
+//        所以要防止同一个mapper重复注册。
+
+//        尝试解析，即看注解或者有没有对应的xml
         MapperAnnotationBuilder parser = new MapperAnnotationBuilder(config, type);
         parser.parse();
         loadCompleted = true;
       } finally {
         if (!loadCompleted) {
+//          解析失败，就移除
           knownMappers.remove(type);
         }
       }

@@ -50,6 +50,7 @@ import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
 
 /**
+ * 解析xml式 mapper
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
@@ -424,6 +425,7 @@ public class XMLMapperBuilder extends BaseBuilder {
       } catch (ClassNotFoundException e) {
         // ignore, bound type is not required
       }
+//      在这判断一下，因为同一个mapper在 org.apache.ibatis.binding.MapperRegistry.addMapper 中可以已添加
       if (boundType != null && !configuration.hasMapper(boundType)) {
         // Spring may not know the real resource name so we set a flag
         // to prevent loading again this resource from the mapper interface

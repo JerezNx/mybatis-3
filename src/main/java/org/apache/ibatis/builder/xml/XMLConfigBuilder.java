@@ -360,27 +360,64 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 解析 mappers 标签
+   *
+   * mybatis 支持4种 mappers 配置方式
+   * <!-- 使用相对于类路径的资源引用 -->
+   * <mappers>
+   *   <mapper resource="org/mybatis/builder/AuthorMapper.xml"/>
+   *   <mapper resource="org/mybatis/builder/BlogMapper.xml"/>
+   *   <mapper resource="org/mybatis/builder/PostMapper.xml"/>
+   * </mappers>
+   *
+   * <!-- 使用完全限定资源定位符（URL） -->
+   * <mappers>
+   *   <mapper url="file:///var/mappers/AuthorMapper.xml"/>
+   *   <mapper url="file:///var/mappers/BlogMapper.xml"/>
+   *   <mapper url="file:///var/mappers/PostMapper.xml"/>
+   * </mappers>
+   *
+   * <!-- 使用映射器接口实现类的完全限定类名 -->
+   * <mappers>
+   *   <mapper class="org.mybatis.builder.AuthorMapper"/>
+   *   <mapper class="org.mybatis.builder.BlogMapper"/>
+   *   <mapper class="org.mybatis.builder.PostMapper"/>
+   * </mappers>
+   *
+   * <!-- 将包内的映射器接口实现全部注册为映射器 -->
+   * <mappers>
+   *   <package name="org.mybatis.builder"/>
+   * </mappers>
+   * @param parent mappers 配置
+   * @throws Exception e
+   */
   private void mapperElement(XNode parent) throws Exception {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
+//        1. package 标签解析
         if ("package".equals(child.getName())) {
           String mapperPackage = child.getStringAttribute("name");
           configuration.addMappers(mapperPackage);
         } else {
+//          2. mapper 标签解析
           String resource = child.getStringAttribute("resource");
           String url = child.getStringAttribute("url");
           String mapperClass = child.getStringAttribute("class");
           if (resource != null && url == null && mapperClass == null) {
+//            2.1 resource 属性解析
             ErrorContext.instance().resource(resource);
             InputStream inputStream = Resources.getResourceAsStream(resource);
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
             mapperParser.parse();
           } else if (resource == null && url != null && mapperClass == null) {
+//            2.2 url 属性解析
             ErrorContext.instance().resource(url);
             InputStream inputStream = Resources.getUrlAsStream(url);
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, url, configuration.getSqlFragments());
             mapperParser.parse();
           } else if (resource == null && url == null && mapperClass != null) {
+//            2.3 class 属性解析
             Class<?> mapperInterface = Resources.classForName(mapperClass);
             configuration.addMapper(mapperInterface);
           } else {

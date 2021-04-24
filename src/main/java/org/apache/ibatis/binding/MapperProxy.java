@@ -101,11 +101,14 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
       // A workaround for https://bugs.openjdk.java.net/browse/JDK-8161372
       // It should be removed once the fix is backported to Java 8 or
       // MyBatis drops Java 8 support. See gh-1929
+//      尝试从缓存中获取
       MapperMethodInvoker invoker = methodCache.get(method);
       if (invoker != null) {
         return invoker;
       }
 
+//      methodCache 是 从 MapperProxyFactory 中传进来的，具体实现是 ConcurrentHashMap
+//      所以 computeIfAbsent 是具有原子性的
       return methodCache.computeIfAbsent(method, m -> {
 //        如果是default方法
         if (m.isDefault()) {

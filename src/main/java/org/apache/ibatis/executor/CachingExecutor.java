@@ -1,36 +1,32 @@
 /**
- *    Copyright 2009-2020 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2020 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.executor;
-
-import java.sql.SQLException;
-import java.util.List;
 
 import org.apache.ibatis.cache.Cache;
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.cache.TransactionalCacheManager;
 import org.apache.ibatis.cursor.Cursor;
-import org.apache.ibatis.mapping.BoundSql;
-import org.apache.ibatis.mapping.MappedStatement;
-import org.apache.ibatis.mapping.ParameterMapping;
-import org.apache.ibatis.mapping.ParameterMode;
-import org.apache.ibatis.mapping.StatementType;
+import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
+
+import java.sql.SQLException;
+import java.util.List;
 
 /**
  * 装饰器模式，在普通的 Executor 上 ，增加了缓存功能
@@ -89,27 +85,30 @@ public class CachingExecutor implements Executor {
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
 //    解析动态sql相关
     BoundSql boundSql = ms.getBoundSql(parameterObject);
-//    根据配置（其实是其id,即外面传的statement唯一标识）、参数、响应逻辑分页、sql等因素，生成缓存的key
+//    根据配置（其实是其id,即外面传的statement唯一标识）、参数、响应逻辑分页、sql等因素，生成缓存的key(可见影响缓存命中的因素就是这些)
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)
-      throws SQLException {
+    throws SQLException {
+//    从MappedStatement中获取Cache,即解析mapper时,创建的Cache对象
     Cache cache = ms.getCache();
-//    尝试获取缓存
     if (cache != null) {
-//      如果缓存中有值，判断是否需要刷新缓存（如果之前有 增删改 操作，就需要）
+//      判断是否需要刷新缓存,
+//      通过在mapper方法上添加 @Options(flushCache = Options.FlushCachePolicy.TRUE)配置,
+//      所以说该配置可同时清空一级缓存和二级缓存
       flushCacheIfRequired(ms);
-//      可见，mapper中还能配置是否使用缓存
+//      可见，mapper中的方法还能单独配置是否使用二级缓存
+//      通过在mapper方法上添加 @Options(useCache = false) 配置,select默认为true
       if (ms.isUseCache() && resultHandler == null) {
         ensureNoOutParams(ms, boundSql);
         @SuppressWarnings("unchecked")
-//          尝试从缓存中获取值（之前的可以被flush掉了）
-        List<E> list = (List<E>) tcm.getObject(cache, key);
+//          尝试从缓存中获取值
+          List<E> list = (List<E>) tcm.getObject(cache, key);
         if (list == null) {
-//          如果没有了，就重新query
+//          如果没有，就去数据库query
           list = delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
 //          将结果放进缓存
           tcm.putObject(cache, key, list); // issue #578 and #116
@@ -117,7 +116,8 @@ public class CachingExecutor implements Executor {
         return list;
       }
     }
-//    如果没有缓存，即第一次查询
+//    如果没有Cache，即mapper上并未标注 @CacheNamespace / @CacheNamespaceRef ,即该mapper未开启二级缓存
+//    则直接由被装饰的executor处理(查库/一级缓存)
     return delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 
@@ -175,6 +175,8 @@ public class CachingExecutor implements Executor {
 
   private void flushCacheIfRequired(MappedStatement ms) {
     Cache cache = ms.getCache();
+//    isFlushCacheRequired 通过 @Options(flushCache = Options.FlushCachePolicy.TRUE)配置
+//    所以说该配置可以同时清空一级缓存和二级缓存
     if (cache != null && ms.isFlushCacheRequired()) {
       tcm.clear(cache);
     }

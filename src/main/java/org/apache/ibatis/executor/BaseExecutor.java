@@ -15,14 +15,6 @@
  */
 package org.apache.ibatis.executor;
 
-import static org.apache.ibatis.executor.ExecutionPlaceholder.EXECUTION_PLACEHOLDER;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.ibatis.cache.CacheKey;
 import org.apache.ibatis.cache.impl.PerpetualCache;
 import org.apache.ibatis.cursor.Cursor;
@@ -30,11 +22,7 @@ import org.apache.ibatis.executor.statement.StatementUtil;
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.apache.ibatis.logging.jdbc.ConnectionLogger;
-import org.apache.ibatis.mapping.BoundSql;
-import org.apache.ibatis.mapping.MappedStatement;
-import org.apache.ibatis.mapping.ParameterMapping;
-import org.apache.ibatis.mapping.ParameterMode;
-import org.apache.ibatis.mapping.StatementType;
+import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.factory.ObjectFactory;
 import org.apache.ibatis.session.Configuration;
@@ -43,6 +31,14 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 import org.apache.ibatis.type.TypeHandlerRegistry;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.apache.ibatis.executor.ExecutionPlaceholder.EXECUTION_PLACEHOLDER;
 
 /**
  * @author Clinton Begin
@@ -143,8 +139,17 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+    /**
+     * ms 上可以配置 flushCache，标识调用该方法就清除缓存
+     * （insert/update/delete 就是默认标识了，具体逻辑见：
+     * {@link org.apache.ibatis.builder.MapperBuilderAssistant.addMappedStatement
+     * <pre>
+     *   //...
+     *   .flushCacheRequired(valueOrDefault(flushCache, !isSelect))
+     * </pre>
+     */
     if (queryStack == 0 && ms.isFlushCacheRequired()) {
-//      localCache 即所谓 一级缓存,session级别
+//      localCache 即所谓 一级缓存,session级别（executor是每个session重新new的），使用hashMap存储
       clearLocalCache();
     }
     List<E> list;
@@ -153,10 +158,12 @@ public abstract class BaseExecutor implements Executor {
 //      尝试从一级缓存中获取值
       list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
       if (list != null) {
+        System.out.println("get cache:" + list);
         handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
       } else {
 //        缓存中没有，就从数据库查询
         list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
+        System.out.println("queryFromDatabase:" + list);
       }
     } finally {
       queryStack--;
@@ -294,12 +301,10 @@ public abstract class BaseExecutor implements Executor {
   /**
    * Apply a transaction timeout.
    *
-   * @param statement
-   *          a current statement
-   * @throws SQLException
-   *           if a database access error occurs, this method is called on a closed <code>Statement</code>
-   * @since 3.4.0
+   * @param statement a current statement
+   * @throws SQLException if a database access error occurs, this method is called on a closed <code>Statement</code>
    * @see StatementUtil#applyTransactionTimeout(Statement, Integer, Integer)
+   * @since 3.4.0
    */
   protected void applyTransactionTimeout(Statement statement) throws SQLException {
     StatementUtil.applyTransactionTimeout(statement, statement.getQueryTimeout(), transaction.getTimeout());
@@ -324,11 +329,16 @@ public abstract class BaseExecutor implements Executor {
 
   private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
     List<E> list;
-//    执行中占位？
+//    执行中占位？ 没理解这步操作，如果同一个session并发多了，
+//    外层方法处又没作处理，直接转型为List，就会报ClassCastException
+//    可能Mybatis设计时要求同一session没有并发（queryStack之类变量确实没加并发控制）？
+//    但如果是这样，那设置这个占位的意义何在？
+//    是为了递归调用时标记已开始？也说不通，通过queryStack就可以知道
     localCache.putObject(key, EXECUTION_PLACEHOLDER);
     try {
       list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
     } finally {
+//      清除临时占位缓存
       localCache.removeObject(key);
     }
 //    结果放入一级缓存

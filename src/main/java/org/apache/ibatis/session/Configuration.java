@@ -658,6 +658,7 @@ public class Configuration {
     executorType = executorType == null ? defaultExecutorType : executorType;
     executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
     Executor executor;
+//    1.根据 ExecutorType,创建对应实现,默认 SIMPLE
     if (ExecutorType.BATCH == executorType) {
       executor = new BatchExecutor(this, transaction);
     } else if (ExecutorType.REUSE == executorType) {
@@ -665,11 +666,11 @@ public class Configuration {
     } else {
       executor = new SimpleExecutor(this, transaction);
     }
+//    2.如果开启了二级缓存，就装饰一下
     if (cacheEnabled) {
-//      如果开启了二级缓存，就装饰一下
       executor = new CachingExecutor(executor);
     }
-//    插件代理
+//    3.插件代理
     executor = (Executor) interceptorChain.pluginAll(executor);
     return executor;
   }

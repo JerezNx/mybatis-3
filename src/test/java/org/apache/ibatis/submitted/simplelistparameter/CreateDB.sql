@@ -24,3 +24,6 @@ create table car (
 insert into car (name, doors) values('Audi', 4);
 insert into car (name, doors) values('Ford', 4);
 insert into car (name, doors) values('Fiat', 4);
+insert into car (name, doors) values('3', 3);
+insert into car (name, doors) values('2', 2);
+insert into car (name, doors) values('1', 1);

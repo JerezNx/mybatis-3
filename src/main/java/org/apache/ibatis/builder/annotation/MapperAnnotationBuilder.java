@@ -91,6 +91,8 @@ import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.UnknownTypeHandler;
 
 /**
+ * 解析注解式 mapper
+ *
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
@@ -115,10 +117,14 @@ public class MapperAnnotationBuilder {
   public void parse() {
     String resource = type.toString();
     if (!configuration.isResourceLoaded(resource)) {
+//      解析注解式mapper，但同时会尝试解析xml
       loadXmlResource();
       configuration.addLoadedResource(resource);
+//      mapper的 nameSpace就是其全类名
       assistant.setCurrentNamespace(type.getName());
+//      解析二级缓存 @CacheNamespace, 一个mapper创建一个Cache
       parseCache();
+//      解析二级缓存(引用方式) @CacheNamespaceRef,和引用的mapper共用一个Cache
       parseCacheRef();
       for (Method method : type.getMethods()) {
         if (!canHaveStatement(method)) {
@@ -158,11 +164,18 @@ public class MapperAnnotationBuilder {
     }
   }
 
+  /**
+   * 从mapper xml中加载解析mapper
+   * 因为mapper可以 注解 和 xml 两种方式结合使用
+   * 所以会尝试获取mapper xml，如果存在对应的xml，
+   * 通过 XMLMapperBuilder 进行解析
+   */
   private void loadXmlResource() {
     // Spring may not know the real resource name so we check a flag
     // to prevent loading again a resource twice
     // this flag is set at XMLMapperBuilder#bindMapperForNamespace
     if (!configuration.isResourceLoaded("namespace:" + type.getName())) {
+//      看起来像是要求xml全路径和mapper全路径相同？
       String xmlResource = type.getName().replace('.', '/') + ".xml";
       // #1347
       InputStream inputStream = type.getResourceAsStream("/" + xmlResource);
@@ -182,11 +195,15 @@ public class MapperAnnotationBuilder {
   }
 
   private void parseCache() {
+//    尝试获取mapper上的 CacheNamespace 注解
     CacheNamespace cacheDomain = type.getAnnotation(CacheNamespace.class);
+//    如果有,则创建二级缓存所用的Cache对象
     if (cacheDomain != null) {
+//      解析 二级缓存相关配置
       Integer size = cacheDomain.size() == 0 ? null : cacheDomain.size();
       Long flushInterval = cacheDomain.flushInterval() == 0 ? null : cacheDomain.flushInterval();
       Properties props = convertToProperties(cacheDomain.properties());
+//      创建Cache
       assistant.useNewCache(cacheDomain.implementation(), cacheDomain.eviction(), flushInterval, size, cacheDomain.readWrite(), cacheDomain.blocking(), props);
     }
   }
@@ -204,6 +221,7 @@ public class MapperAnnotationBuilder {
   }
 
   private void parseCacheRef() {
+    // 尝试解析CacheNamespaceRef注解
     CacheNamespaceRef cacheDomainRef = type.getAnnotation(CacheNamespaceRef.class);
     if (cacheDomainRef != null) {
       Class<?> refType = cacheDomainRef.value();
@@ -214,10 +232,13 @@ public class MapperAnnotationBuilder {
       if (refType != void.class && !refName.isEmpty()) {
         throw new BuilderException("Cannot use both value() and name() attribute in the @CacheNamespaceRef");
       }
+//      优先是用注解上标的class(mapper)全类名,而后再是字符串类型的
       String namespace = (refType != void.class) ? refType.getName() : refName;
       try {
+//        根据全类名,去找cache,进行复用
         assistant.useCacheRef(namespace);
       } catch (IncompleteElementException e) {
+//        当依赖的mapper尚未加载时
         configuration.addIncompleteCacheRef(new CacheRefResolver(assistant, namespace));
       }
     }

@@ -15,5 +15,7 @@
  */
 package org.apache.ibatis.submitted.simplelistparameter;
 
+import java.io.Serializable;
+
 public class Rv extends Vehicle<String> {
 }

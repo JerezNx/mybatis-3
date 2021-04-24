@@ -22,6 +22,7 @@ import org.apache.ibatis.cache.Cache;
 
 /**
  * Lru (least recently used) cache decorator.
+ * 基于LinkedHashMap实现
  *
  * @author Clinton Begin
  */
@@ -50,12 +51,21 @@ public class LruCache implements Cache {
     keyMap = new LinkedHashMap<Object, Object>(size, .75F, true) {
       private static final long serialVersionUID = 4267176411845948333L;
 
+      /**
+       * 在map设置值的操作中会调用该方法
+       *
+       * @param eldest 最早的一个entry
+       * @return bool ，为true表示需要删除该entry
+       */
       @Override
       protected boolean removeEldestEntry(Map.Entry<Object, Object> eldest) {
+//        判断当前map的大小是否超过设定的阈值 1024
         boolean tooBig = size() > size;
         if (tooBig) {
+//          超出了，就记录最早的key
           eldestKey = eldest.getKey();
         }
+//        返回true，则会 清除keyMap 中最早的一个
         return tooBig;
       }
     };
@@ -64,6 +74,7 @@ public class LruCache implements Cache {
   @Override
   public void putObject(Object key, Object value) {
     delegate.putObject(key, value);
+    // 判断是否超出限制
     cycleKeyList(key);
   }
 
@@ -86,6 +97,7 @@ public class LruCache implements Cache {
 
   private void cycleKeyList(Object key) {
     keyMap.put(key, key);
+//    超过限制后，就要移除最早的一个
     if (eldestKey != null) {
       delegate.removeObject(eldestKey);
       eldestKey = null;
